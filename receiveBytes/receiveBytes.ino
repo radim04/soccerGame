@@ -1,9 +1,7 @@
 #include <avr/io.h> 
 #include <avr/interrupt.h> 
  
-// Set up input capture mode
-// Set up timers
-// Set up port for output
+#define PIN_ICP1 8
  
 volatile unsigned int T1capture, lastT1capture, period ; 
 volatile unsigned int ReceiverBuffer[50];
@@ -33,23 +31,16 @@ void loop() {
  
 void Init() { 
   // init timer
-  //TCNT1=0;                         //SETTING INTIAL TIMER VALUE
-  //TCCR1B|=(1<<ICES1);              //SETTING FIRST CAPTURE ON RISING EDGE ,(TCCR1B = TCCR1B | (1<<ICES1)
-  //TIMSK1|=(1<<ICIE1);              //ENABLING INPUT CAPTURE INTERRUPT
-  // start timer
-  //TCCR1B|=(1<<CS10);              //STARTING TIMER WITH NO PRESCALING
-//set up timer1 for full speed and
-//capture an edge on analog comparator pin B.3 
-// Set capture to positive edge, full counting rate
-TCCR1B = (1<<ICES1) + 1; 
-// Turn on timer1 interrupt-on-capture
-TIMSK1 = (1<<ICIE1) ;
-// turn off other timer1 functions
-TCCR1A = 0;
-  sei();                          //ENABLING GLOBAL INTERRUPTS 
-  // Set up the Input Capture pin, ICP1, which corresponds to Arduino D8
-  pinMode(8, INPUT);
-  digitalWrite(8,HIGH);
+  // set capture to positive edge, full counting rate
+  TCCR1B = (1<<ICES1) + 1; 
+  // turn on timer1 interrupt-on-capture
+  TIMSK1 = (1<<ICIE1) ;
+  // turn off other timer1 functions
+  TCCR1A = 0;
+  sei(); //ENABLING GLOBAL INTERRUPTS 
+  // set up the input capture pin, ICP1, which corresponds to arduino D8
+  pinMode(PIN_ICP1, INPUT);
+  digitalWrite(PIN_ICP1,HIGH);
 } 
  
 // ISR for falling edge

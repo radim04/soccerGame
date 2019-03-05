@@ -7,11 +7,11 @@ Send bytes on a one-wire-like bus
 #define TIMER_COUNTER_RESET 61536  //65536-4000
 #define TIMER_COUNTER_0 64736  //65536-800
 #define TIMER_COUNTER_1 64336  //65536-1200
-#define TRANSMIT_BUFFER_LENGTH 3
+#define TRANSMIT_BUFFER_LENGTH 4
 
 int timer1_counter;
 
-volatile byte transmitBuffer[] = {15, 15, 15};
+volatile byte transmitBuffer[] = {15, 15, 15, 0};
 volatile byte transmitBufferByteIndex = 0;
 volatile byte transmitBufferBitIndex = 0;
 volatile boolean transmitBufferIsTransmitting = false;
@@ -19,6 +19,8 @@ volatile boolean transmitBufferIsTransmitting = false;
 void setup()
 {
   pinMode(transmitterPin, OUTPUT);
+
+  // compute CRC for transmitted data
 
   // initialize timer1 
   noInterrupts();           // disable all interrupts
@@ -75,6 +77,24 @@ ISR(TIMER1_OVF_vect)        // TIMER1 interrupt service routine
     NOP;
     digitalWrite(transmitterPin, HIGH);
   }
+}
+
+//CRC-8 - based on the CRC8 formulas by Dallas/Maxim
+//code released under the therms of the GNU GPL 3.0 license
+byte CRC8(const byte *data, byte len) {
+  byte crc = 0x00;
+  while (len--) {
+    byte extract = *data++;
+    for (byte tempI = 8; tempI; tempI--) {
+      byte sum = (crc ^ extract) & 0x01;
+      crc >>= 1;
+      if (sum) {
+        crc ^= 0x8C;
+      }
+      extract >>= 1;
+    }
+  }
+  return crc;
 }
 
 void loop()

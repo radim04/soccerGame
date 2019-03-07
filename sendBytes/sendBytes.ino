@@ -62,7 +62,7 @@ ISR(TIMER1_OVF_vect)        // TIMER1 interrupt service routine
         transmitBufferBitIndex = B10000000;
         transmitBufferByteIndex++;
         if( transmitBufferByteIndex >= TRANSMIT_BUFFER_LENGTH ) {
-          //transmitBufferIsTransmitting = false; // finished!
+          transmitBufferIsTransmitting = false; // finished!
           transmitBufferByteIndex = 0;
           transmitBufferBitIndex = 0;
         }
@@ -99,6 +99,9 @@ byte CRC8(const byte *data, byte len) {
 
 void loop()
 {
-  // your program here...
+  if (!transmitBufferIsTransmitting) {
+    transmitBuffer[0] = map(analogRead(A0), 0, 1023, 0, 255);
+    transmitBufferIsTransmitting = true;
+  }
 }
 

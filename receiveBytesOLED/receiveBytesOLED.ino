@@ -53,7 +53,6 @@ void loop() {
     display.println(F("|"));
     display.println(CRC8(receiverBuffer, RECEIVER_BUFFER_LENGTH));
     display.display();
-    delay(500);
     analogWrite(PIN_ANALOG, receiverBuffer[0]);
     receiverBufferIsReady = false;
   }

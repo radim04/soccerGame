@@ -12,6 +12,7 @@
 #define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
  
+#define PIN_ANALOG 3
 #define PIN_ICP1 8
 #define TIMER_COUNTER_RESET 4000
 #define TIMER_COUNTER_0 800
@@ -25,10 +26,15 @@ volatile byte receiverBuffer[50];
 volatile byte receiverBufferByteIndex = 0;
 volatile byte receiverBufferBitIndex = B10000000;
 volatile boolean receiverBufferIsReady = false;
+volatile int timer=0;
+volatile bool state=0;
  
-void setup() 
-{ 
-  InitTimer(); 
+void setup() { 
+  pinMode(PIN_ANALOG, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+  InitTimer0(); 
+  InitTimer1(); 
+  sei(); //enable interrupts
   InitOLED();
   for(int i = 0; i<50; i++) {
     receiverBuffer[i] = 0;
@@ -37,24 +43,37 @@ void setup()
 } 
  
 void loop() {
-  while(1) {
-    if (receiverBufferIsReady) {
-      display.clearDisplay();
-      display.setCursor(0, 0);
-      for(int i = 0; i<RECEIVER_BUFFER_LENGTH; i++) {
-        display.print(F("|"));
-        display.print(receiverBuffer[i]);
-      }
-      display.println(F("|"));
-      display.println(CRC8(receiverBuffer, RECEIVER_BUFFER_LENGTH));
-      display.display();
-      delay(500);
-      receiverBufferIsReady = false;
+  if (receiverBufferIsReady) {
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    for(int i = 0; i<RECEIVER_BUFFER_LENGTH; i++) {
+      display.print(F("|"));
+      display.print(receiverBuffer[i]);
     }
+    display.println(F("|"));
+    display.println(CRC8(receiverBuffer, RECEIVER_BUFFER_LENGTH));
+    display.display();
+    delay(500);
+    analogWrite(PIN_ANALOG, receiverBuffer[0]);
+    receiverBufferIsReady = false;
   }
+  if (timer>=1000) {
+    state=!state;
+    timer=0;
+    digitalWrite(13,state);
+  } 
 } 
+
+void InitTimer0() { 
+  TCCR0A=(1<<WGM01);     // Set the CTC mode   
+  OCR0A=0xF9;            // Value for ORC0A for 1ms 
+  TIMSK0|=(1<<OCIE0A);   // Set the interrupt request
+  TCCR0B|=(1<<CS01);     // Set the prescale 1/64 clock
+  TCCR0B|=(1<<CS00);  
+}
  
-void InitTimer() { 
+void InitTimer1() { 
+  // used for communication with sender
   // set capture to positive edge, full counting rate
   TCCR1B = (1<<ICES1) + 1; 
   // turn on timer1 interrupt-on-capture
@@ -96,7 +115,11 @@ byte CRC8(const byte *data, byte len) {
   return crc;
 }
 
-// ISR for falling edge
+ISR(TIMER0_COMPA_vect) {   
+  timer++;
+}
+
+// ISR for falling edge (handle communication with sender)
 ISR(TIMER1_CAPT_vect) { 
   // read timer1 input capture register
   T1capture = ICR1 ; 

@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <DigitalIO.h>  
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
@@ -20,18 +21,35 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define TIMER_COUNTER_LIMIT_1 1000
 #define TIMER_COUNTER_LIMIT_RESET 2000
 #define RECEIVER_BUFFER_LENGTH 3
+
+// for handmade PWM
+const uint8_t pinLMotor0 = 3;
+const uint8_t pinLMotor1 = 4;
+const uint8_t pinRMotor0 = 5;
+const uint8_t pinRMotor1 = 6;
  
 volatile unsigned int T1capture, lastT1capture, period ; 
 volatile byte receiverBuffer[50];
 volatile byte receiverBufferByteIndex = 0;
 volatile byte receiverBufferBitIndex = B10000000;
 volatile boolean receiverBufferIsReady = false;
+
+// for handmade PWM
+volatile uint8_t ramp = 0; // 0..255
+volatile uint8_t lMotor = 0;
+volatile uint8_t rMotor = 0;
+volatile boolean lMotor0 = LOW; // state of motor output pins:
+volatile boolean lMotor1 = LOW;
+volatile boolean rMotor0 = LOW;
+volatile boolean rMotor1 = LOW;
+
 volatile int timer=0;
 volatile bool state=0;
  
 void setup() { 
   pinMode(PIN_ANALOG, OUTPUT);
   pinMode(LED_BUILTIN, OUTPUT);
+  InitMotors();
   InitTimer0(); 
   InitTimer1(); 
   sei(); //enable interrupts
@@ -53,7 +71,9 @@ void loop() {
     display.println(F("|"));
     display.println(CRC8(receiverBuffer, RECEIVER_BUFFER_LENGTH));
     display.display();
-    analogWrite(PIN_ANALOG, receiverBuffer[0]);
+    //analogWrite(PIN_ANALOG, receiverBuffer[0]);
+    lMotor = receiverBuffer[0];
+    rMotor = receiverBuffer[1];
     receiverBufferIsReady = false;
   }
   if (timer>=10000) {
@@ -62,6 +82,13 @@ void loop() {
     digitalWrite(13,state);
   } 
 } 
+
+void InitMotors() {
+  fastPinMode(pinLMotor0, OUTPUT);
+  fastPinMode(pinLMotor1, OUTPUT);
+  fastPinMode(pinRMotor0, OUTPUT);
+  fastPinMode(pinRMotor1, OUTPUT);
+}
 
 void InitTimer0() { 
   // interrupt frequency 10kHz (http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html)
@@ -122,6 +149,30 @@ byte CRC8(const byte *data, byte len) {
 }
 
 ISR(TIMER0_COMPA_vect) {   
+  uint8_t lMotorSpeed = lMotor & B01111111; //rightmost 7 bits are for speed
+  uint8_t lMotorDirFwd = lMotor & B10000000; //leftmost bit indicates direction
+  if (ramp == 0) {
+    if (!lMotorDirFwd) {
+      // turn motor forwards
+      fastDigitalWrite(pinLMotor0, HIGH);
+      lMotor0 = true;
+      fastDigitalWrite(pinLMotor1, LOW);
+      lMotor1 = false;      
+    } else {
+      // turn motor backwards
+      fastDigitalWrite(pinLMotor0, LOW);
+      lMotor0 = false;
+      fastDigitalWrite(pinLMotor1, HIGH);
+      lMotor1 = true;            
+    }
+  } else if (ramp >= lMotorSpeed && (lMotor0 == true || lMotor1 == true)) {
+    // turn motor off
+    fastDigitalWrite(pinLMotor0, LOW);
+    lMotor0 = false;
+    fastDigitalWrite(pinLMotor1, LOW);
+    lMotor1 = false;
+  }
+  ramp++; 
   timer++;
 }
 

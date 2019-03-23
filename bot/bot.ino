@@ -43,12 +43,17 @@ volatile boolean lMotor1 = LOW;
 volatile boolean rMotor0 = LOW;
 volatile boolean rMotor1 = LOW;
 
+DigitalPin<13> pinLED;
+DigitalPin<8> pinICP1;
+
 volatile int timer=0;
 volatile bool state=0;
  
 void setup() { 
   pinMode(PIN_ANALOG, OUTPUT);
-  pinMode(LED_BUILTIN, OUTPUT);
+  //pinMode(LED_BUILTIN, OUTPUT);
+  pinLED.mode(OUTPUT);
+  pinICP1.mode(INPUT);
   InitMotors();
   InitTimer0(); 
   InitTimer1(); 
@@ -79,7 +84,7 @@ void loop() {
   if (timer>=10000) {
     state=!state;
     timer=0;
-    digitalWrite(13,state);
+    //pinLED = state;
   } 
 } 
 
@@ -149,7 +154,7 @@ byte CRC8(const byte *data, byte len) {
 }
 
 ISR(TIMER0_COMPA_vect) {   
-  uint8_t lMotorSpeed = lMotor & B01111111; //rightmost 7 bits are for speed
+/*  uint8_t lMotorSpeed = lMotor & B01111111; //rightmost 7 bits are for speed
   uint8_t lMotorDirFwd = lMotor & B10000000; //leftmost bit indicates direction
   if (ramp == 0) {
     if (!lMotorDirFwd) {
@@ -171,7 +176,8 @@ ISR(TIMER0_COMPA_vect) {
     lMotor0 = false;
     fastDigitalWrite(pinLMotor1, LOW);
     lMotor1 = false;
-  }
+  }*/
+  pinLED = pinICP1;
   ramp++; 
   timer++;
 }

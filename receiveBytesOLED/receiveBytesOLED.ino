@@ -122,7 +122,7 @@ byte CRC8(const byte *data, byte len) {
 }
 
 ISR(TIMER0_COMPA_vect) {   
-  timer++;
+  //timer++;
 }
 
 // ISR for falling edge (handle communication with sender)

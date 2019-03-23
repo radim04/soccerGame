@@ -68,14 +68,14 @@ ISR(TIMER1_OVF_vect)        // TIMER1 interrupt service routine
         }
       }
     }
-    // send short LOW pulse
-    digitalWrite(transmitterPin, LOW);
-    NOP;
-    NOP;
-    NOP;
-    NOP;
-    NOP;
+    // send short pulse
     digitalWrite(transmitterPin, HIGH);
+    NOP;
+    NOP;
+    NOP;
+    NOP;
+    NOP;
+    digitalWrite(transmitterPin, LOW);
   }
 }
 

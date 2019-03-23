@@ -154,7 +154,7 @@ byte CRC8(const byte *data, byte len) {
 }
 
 ISR(TIMER0_COMPA_vect) {   
-/*  uint8_t lMotorSpeed = lMotor & B01111111; //rightmost 7 bits are for speed
+  uint8_t lMotorSpeed = lMotor & B01111111; //rightmost 7 bits are for speed
   uint8_t lMotorDirFwd = lMotor & B10000000; //leftmost bit indicates direction
   if (ramp == 0) {
     if (!lMotorDirFwd) {
@@ -176,7 +176,7 @@ ISR(TIMER0_COMPA_vect) {
     lMotor0 = false;
     fastDigitalWrite(pinLMotor1, LOW);
     lMotor1 = false;
-  }*/
+  }
   pinLED = pinICP1;
   ramp++; 
   timer++;

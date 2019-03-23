@@ -100,7 +100,11 @@ byte CRC8(const byte *data, byte len) {
 void loop()
 {
   if (!transmitBufferIsTransmitting) {
-    transmitBuffer[0] = map(analogRead(A0), 0, 1023, 0, 255);
+    int joy = map(analogRead(A0), 0, 1023, 0, 255);
+    if (joy <= 127) {
+      joy = 127 - joy;
+    }
+    transmitBuffer[0] = joy;
     transmitBufferIsTransmitting = true;
   }
 }

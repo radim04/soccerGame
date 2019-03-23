@@ -4,7 +4,6 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <DigitalIO.h>  
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
@@ -14,6 +13,7 @@
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
  
 #define PIN_ANALOG 3
+#define PIN_LMOTOR_DIR 4
 #define PIN_ICP1 8
 #define TIMER_COUNTER_RESET 4000
 #define TIMER_COUNTER_0 800
@@ -22,11 +22,6 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define TIMER_COUNTER_LIMIT_RESET 2000
 #define RECEIVER_BUFFER_LENGTH 3
 
-// for handmade PWM
-const uint8_t pinLMotor0 = 3;
-const uint8_t pinLMotor1 = 4;
-const uint8_t pinRMotor0 = 5;
-const uint8_t pinRMotor1 = 6;
  
 volatile unsigned int T1capture, lastT1capture, period ; 
 volatile byte receiverBuffer[50];
@@ -34,28 +29,10 @@ volatile byte receiverBufferByteIndex = 0;
 volatile byte receiverBufferBitIndex = B10000000;
 volatile boolean receiverBufferIsReady = false;
 
-// for handmade PWM
-volatile uint8_t ramp = 0; // 0..255
-volatile uint8_t lMotor = 0;
-volatile uint8_t rMotor = 0;
-volatile boolean lMotor0 = LOW; // state of motor output pins:
-volatile boolean lMotor1 = LOW;
-volatile boolean rMotor0 = LOW;
-volatile boolean rMotor1 = LOW;
-
-DigitalPin<13> pinLED;
-DigitalPin<8> pinICP1;
-
-volatile int timer=0;
-volatile bool state=0;
- 
 void setup() { 
   pinMode(PIN_ANALOG, OUTPUT);
-  //pinMode(LED_BUILTIN, OUTPUT);
-  pinLED.mode(OUTPUT);
-  pinICP1.mode(INPUT);
-  InitMotors();
-  InitTimer0(); 
+  pinMode(PIN_LMOTOR_DIR, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
   InitTimer1(); 
   sei(); //enable interrupts
   InitOLED();
@@ -76,39 +53,16 @@ void loop() {
     display.println(F("|"));
     display.println(CRC8(receiverBuffer, RECEIVER_BUFFER_LENGTH));
     display.display();
-    //analogWrite(PIN_ANALOG, receiverBuffer[0]);
-    lMotor = receiverBuffer[0];
-    rMotor = receiverBuffer[1];
+    uint8_t lMotorSpeed = (receiverBuffer[0] & B01111111) << 1; //rightmost 7 bits are for speed
+    uint8_t lMotorDirFwd = receiverBuffer[0] & B10000000; //leftmost bit indicates direction
+    if (lMotorDirFwd) {
+      lMotorSpeed = ~lMotorSpeed;
+    }
+    analogWrite(PIN_ANALOG, lMotorSpeed);
+    digitalWrite(PIN_LMOTOR_DIR,lMotorDirFwd);
     receiverBufferIsReady = false;
   }
-  if (timer>=10000) {
-    state=!state;
-    timer=0;
-    //pinLED = state;
-  } 
 } 
-
-void InitMotors() {
-  fastPinMode(pinLMotor0, OUTPUT);
-  fastPinMode(pinLMotor1, OUTPUT);
-  fastPinMode(pinRMotor0, OUTPUT);
-  fastPinMode(pinRMotor1, OUTPUT);
-}
-
-void InitTimer0() { 
-  // interrupt frequency 10kHz (http://www.8bit-era.cz/arduino-timer-interrupts-calculator.html)
-  TCCR0A = 0; // set entire TCCR0A register to 0
-  TCCR0B = 0; // same for TCCR0B
-  TCNT0  = 0; // initialize counter value to 0
-  // set compare match register for 10000 Hz increments
-  OCR0A = 199; // = 16000000 / (8 * 10000) - 1 (must be <256)
-  // turn on CTC mode
-  TCCR0B |= (1 << WGM01);
-  // Set CS02, CS01 and CS00 bits for 8 prescaler
-  TCCR0B |= (0 << CS02) | (1 << CS01) | (0 << CS00);
-  // enable timer compare interrupt
-  TIMSK0 |= (1 << OCIE0A);
-}
  
 void InitTimer1() { 
   // used for communication with sender
@@ -151,35 +105,6 @@ byte CRC8(const byte *data, byte len) {
     }
   }
   return crc;
-}
-
-ISR(TIMER0_COMPA_vect) {   
-  uint8_t lMotorSpeed = lMotor & B01111111; //rightmost 7 bits are for speed
-  uint8_t lMotorDirFwd = lMotor & B10000000; //leftmost bit indicates direction
-  if (ramp == 0) {
-    if (!lMotorDirFwd) {
-      // turn motor forwards
-      fastDigitalWrite(pinLMotor0, HIGH);
-      lMotor0 = true;
-      fastDigitalWrite(pinLMotor1, LOW);
-      lMotor1 = false;      
-    } else {
-      // turn motor backwards
-      fastDigitalWrite(pinLMotor0, LOW);
-      lMotor0 = false;
-      fastDigitalWrite(pinLMotor1, HIGH);
-      lMotor1 = true;            
-    }
-  } else if (ramp >= lMotorSpeed && (lMotor0 == true || lMotor1 == true)) {
-    // turn motor off
-    fastDigitalWrite(pinLMotor0, LOW);
-    lMotor0 = false;
-    fastDigitalWrite(pinLMotor1, LOW);
-    lMotor1 = false;
-  }
-  pinLED = pinICP1;
-  ramp++; 
-  timer++;
 }
 
 // ISR for falling edge (handle communication with sender)
